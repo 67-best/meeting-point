@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Best Meeting Point Calculator</title>
+  <meta charset="UTF-8">
+  <style>
+
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 50px;
+      background-color: #f4f4f4;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    textarea {
+      width: 300px;
+      height: 150px;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 12px 25px;
+      font-size: 16px;
+      margin-top: 10px;
+      cursor: pointer;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>Best Meeting Point Calculator</h1>
+
+<p>Enter coordinates (one per line)</p>
+
+<textarea id="coords" placeholder="Example:
+41.6488, -0.8891
+41.3874, 2.1686"></textarea>
+
+<br>
+
+<button onclick="calculateCenter()">Calculate</button>
+
+<div id="result"></div>
+
+<script>
+
+function calculateCenter() {
+
+  let lines = document.getElementById("coords").value.split("\n");
+
+  let totalLat = 0;
+  let totalLng = 0;
+  let count = 0;
+
+  for (let line of lines) {
+
+    if (line.trim() === "") continue;
+
+    let parts = line.split(",");
+
+    totalLat += parseFloat(parts[0]);
+    totalLng += parseFloat(parts[1]);
+
+    count++;
+  }
+
+  if (count === 0) {
+    document.getElementById("result").innerHTML = "Enter valid coordinates";
+    return;
+  }
+
+  let lat = totalLat / count;
+  let lng = totalLng / count;
+
+  document.getElementById("result").innerHTML =
+    "Best meeting point: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+
+}
+
+</script>
+
+</body>
+</html>
