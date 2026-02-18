@@ -8,232 +8,78 @@
 <link rel="stylesheet"
 href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
 rel="stylesheet">
 
 <style>
 
-/* BACKGROUND */
-
-body {
-
+body{
 margin:0;
-font-family:'Inter',sans-serif;
-
-background:
-radial-gradient(circle at 20% 20%,#6366f1 0%,transparent 40%),
-radial-gradient(circle at 80% 80%,#8b5cf6 0%,transparent 40%),
-#0f172a;
-
-height:100vh;
-
+font-family:Inter;
+background:#0f172a;
+color:white;
 display:flex;
 justify-content:center;
 align-items:center;
-
-animation:bgMove 20s infinite alternate;
-
+height:100vh;
 }
-
-@keyframes bgMove{
-
-0%{background-position:0% 0%;}
-100%{background-position:100% 100%;}
-
-}
-
-
-/* MAIN CARD */
 
 .app{
-
 width:900px;
-
-background:rgba(255,255,255,0.08);
-
-backdrop-filter:blur(30px);
-
-border-radius:24px;
-
-padding:24px;
-
-box-shadow:
-0 30px 80px rgba(0,0,0,0.6);
-
-border:1px solid rgba(255,255,255,0.1);
-
-color:white;
-
-animation:fadeIn 1s ease;
-
-}
-
-@keyframes fadeIn{
-
-from{opacity:0; transform:translateY(20px);}
-to{opacity:1; transform:translateY(0);}
-
-}
-
-
-/* TITLE */
-
-.title{
-
-font-size:32px;
-font-weight:700;
-margin-bottom:16px;
-
-}
-
-
-/* LINK BOX */
-
-.linkBox{
-
 background:rgba(255,255,255,0.05);
-
-padding:12px;
-
-border-radius:12px;
-
-margin-bottom:16px;
-
-font-size:14px;
-
-color:#cbd5e1;
-
+padding:20px;
+border-radius:20px;
 }
-
-
-/* BUTTON */
 
 button{
-
-background:linear-gradient(135deg,#6366f1,#8b5cf6);
-
+padding:12px;
+border-radius:10px;
 border:none;
-
-padding:14px 22px;
-
-border-radius:14px;
-
-font-size:16px;
-
-font-weight:600;
-
+background:#6366f1;
 color:white;
-
 cursor:pointer;
-
-transition:0.2s;
-
+margin-top:10px;
 }
 
-button:hover{
-
-transform:scale(1.08);
-
-box-shadow:
-0 10px 40px rgba(139,92,246,0.6);
-
+input{
+padding:12px;
+border-radius:10px;
+border:none;
+width:300px;
+margin-top:10px;
 }
-
-
-/* STATUS */
-
-#status{
-
-margin-top:16px;
-margin-bottom:16px;
-
-color:#e2e8f0;
-
-}
-
-
-/* MAP */
 
 #map{
-
-height:420px;
-
-border-radius:16px;
-
-overflow:hidden;
-
-border:1px solid rgba(255,255,255,0.2);
-
-}
-
-
-/* MARKER */
-
-.user-marker{
-
-width:18px;
-height:18px;
-
-background:#6366f1;
-
-border-radius:50%;
-
-border:3px solid white;
-
-box-shadow:
-0 0 20px rgba(99,102,241,0.8);
-
-}
-
-.midpoint-marker{
-
-width:22px;
-height:22px;
-
-background:#22c55e;
-
-border-radius:50%;
-
-border:4px solid white;
-
-box-shadow:
-0 0 30px rgba(34,197,94,0.9);
-
-animation:pulse 2s infinite;
-
-}
-
-@keyframes pulse{
-
-0%{transform:scale(1);}
-50%{transform:scale(1.2);}
-100%{transform:scale(1);}
-
+height:400px;
+margin-top:20px;
+border-radius:15px;
 }
 
 </style>
 
 </head>
-
 <body>
 
 <div class="app">
 
-<div class="title">
-Best Meeting Point
-</div>
+<h2>Best Meeting Point</h2>
 
-<div id="roomLink" class="linkBox">
-Loading...
-</div>
+<div id="roomLink"></div>
 
-<button id="locationBtn">
-Add My Location
+<button onclick="addLocationGPS()">
+Use my GPS location
 </button>
 
-<div id="status">
-Waiting for participants...
-</div>
+<br>
+
+<input id="addressInput"
+placeholder="Enter address manually"/>
+
+<button onclick="addManualAddress()">
+Use address
+</button>
+
+<div id="status"></div>
 
 <div id="map"></div>
 
@@ -256,14 +102,10 @@ onSnapshot
 }
 from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-
 const firebaseConfig={
-apiKey:"AIzaSyCS7M73mjrroopukLHjnsYU_LJsJd5sRhM",
+apiKey:"AIzaSy...",
 authDomain:"meeting-point-c6e59.firebaseapp.com",
-projectId:"meeting-point-c6e59",
-storageBucket:"meeting-point-c6e59.firebasestorage.app",
-messagingSenderId:"461316484285",
-appId:"1:461316484285:web:d479f85ae597f32bd59bd4"
+projectId:"meeting-point-c6e59"
 };
 
 const app=initializeApp(firebaseConfig);
@@ -295,12 +137,12 @@ window.location.search="?room="+roomId;
 }
 
 document.getElementById("roomLink").innerHTML=
-"Share this link:<br>"+window.location.href;
+window.location.href;
 
 
 /* MAP */
 
-const map=L.map("map").setView([40.4168,-3.7038],6);
+const map=L.map("map").setView([40,-3],6);
 
 L.tileLayer(
 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -316,16 +158,65 @@ markers=[];
 }
 
 
-/* BUTTON */
+/* GPS LOCATION */
 
-document.getElementById("locationBtn").onclick=()=>{
+window.addLocationGPS=function(){
 
 navigator.geolocation.getCurrentPosition(
 
-async pos=>{
+pos=>{
 
-const lat=pos.coords.latitude;
-const lng=pos.coords.longitude;
+saveLocation(
+pos.coords.latitude,
+pos.coords.longitude
+);
+
+},
+
+()=>{
+
+alert("GPS denied. Enter address manually.");
+
+}
+
+);
+
+}
+
+
+/* MANUAL ADDRESS */
+
+window.addManualAddress=async function(){
+
+const address=
+document.getElementById("addressInput").value;
+
+const url=
+"https://nominatim.openstreetmap.org/search?format=json&q="
++encodeURIComponent(address);
+
+const res=await fetch(url);
+
+const data=await res.json();
+
+if(data.length==0){
+
+alert("Address not found");
+return;
+
+}
+
+saveLocation(
+parseFloat(data[0].lat),
+parseFloat(data[0].lon)
+);
+
+}
+
+
+/* SAVE LOCATION */
+
+async function saveLocation(lat,lng){
 
 const ref=doc(db,"rooms",roomId);
 
@@ -336,72 +227,85 @@ let locations={};
 if(snap.exists())
 locations=snap.data().locations||{};
 
-locations[userId]={lat,lng};
+
+/* CLEAN OLD USERS */
+
+const now=Date.now();
+
+Object.keys(locations).forEach(id=>{
+
+if(now-locations[id].lastSeen>1000*60*5){
+
+delete locations[id];
+
+}
+
+});
+
+
+locations[userId]={
+
+lat,
+lng,
+lastSeen:Date.now()
+
+};
 
 await setDoc(ref,{locations});
 
 }
 
-);
-
-};
-
 
 /* REALTIME */
 
-onSnapshot(doc(db,"rooms",roomId),snap=>{
+onSnapshot(
+doc(db,"rooms",roomId),
+snap=>{
 
 if(!snap.exists())return;
 
-updateMap(snap.data().locations||{});
+updateMap(
+snap.data().locations||{}
+);
 
 });
 
 
 /* UPDATE MAP */
 
-function updateMap(obj){
+function updateMap(locations){
 
 clearMarkers();
 
-const locs=Object.values(obj);
-
-if(locs.length==0)return;
+const users=
+Object.values(locations);
 
 let lat=0,lng=0;
 
-locs.forEach(l=>{
+users.forEach(u=>{
 
-lat+=l.lat;
-lng+=l.lng;
-
-const icon=L.divIcon({
-className:"user-marker"
-});
+lat+=u.lat;
+lng+=u.lng;
 
 markers.push(
-L.marker([l.lat,l.lng],{icon})
+L.marker([u.lat,u.lng])
 .addTo(map)
 );
 
 });
 
-lat/=locs.length;
-lng/=locs.length;
-
-const icon=L.divIcon({
-className:"midpoint-marker"
-});
+lat/=users.length;
+lng/=users.length;
 
 markers.push(
-L.marker([lat,lng],{icon})
+L.marker([lat,lng])
 .addTo(map)
 );
 
 map.setView([lat,lng],10);
 
 document.getElementById("status").innerHTML=
-"Participants: "+locs.length;
+"Participants: "+users.length;
 
 }
 
