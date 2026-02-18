@@ -223,7 +223,45 @@ function clearMarkers() {
 
 
 
-async function addMyLocation() {
+async function addMyLocation(){
+
+navigator.geolocation.getCurrentPosition(
+
+async position => {
+
+let lat = position.coords.latitude;
+let lng = position.coords.longitude;
+
+console.log("Location:", lat, lng);
+
+let roomRef = doc(db,"rooms",roomId);
+
+let roomSnapshot = await getDoc(roomRef);
+
+let locations = [];
+
+if (roomSnapshot.exists()) {
+locations = roomSnapshot.data().locations || [];
+}
+
+locations.push({lat,lng});
+
+await setDoc(roomRef,{locations});
+
+},
+
+error => {
+
+alert("Location access denied or unavailable");
+
+console.error(error);
+
+}
+
+);
+
+}
+
 
 
 navigator.geolocation.getCurrentPosition(
