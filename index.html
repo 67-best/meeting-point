@@ -12,12 +12,8 @@
       background-color: #f4f4f4;
     }
 
-    h1 {
-      color: #333;
-    }
-
     textarea {
-      width: 300px;
+      width: 400px;
       height: 150px;
       padding: 10px;
       font-size: 14px;
@@ -34,10 +30,6 @@
       border-radius: 5px;
     }
 
-    button:hover {
-      background-color: #0056b3;
-    }
-
     #result {
       margin-top: 20px;
       font-size: 18px;
@@ -50,50 +42,80 @@
 
 <h1>Best Meeting Point Calculator</h1>
 
-<p>Enter coordinates (one per line)</p>
+<p>Enter addresses (one per line)</p>
 
-<textarea id="coords" placeholder="Example:
-41.6488, -0.8891
-41.3874, 2.1686"></textarea>
+<textarea id="addresses" placeholder="Example:
+Zaragoza, Spain
+Barcelona, Spain
+Madrid, Spain"></textarea>
 
 <br>
 
-<button onclick="calculateCenter()">Calculate</button>
+<button onclick="findMeetingPoint()">Calculate</button>
 
 <div id="result"></div>
 
 <script>
 
-function calculateCenter() {
+async function geocode(address) {
 
-  let lines = document.getElementById("coords").value.split("\n");
+  let url = "https://nominatim.openstreetmap.org/search?format=json&q=" 
+            + encodeURIComponent(address);
 
-  let totalLat = 0;
-  let totalLng = 0;
-  let count = 0;
+  let response = await fetch(url);
+  let data = await response.json();
+
+  if (data.length === 0) return null;
+
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon)
+  };
+}
+
+async function findMeetingPoint() {
+
+  let lines = document.getElementById("addresses").value.split("\n");
+
+  let coords = [];
+
+  document.getElementById("result").innerHTML = "Calculating...";
 
   for (let line of lines) {
 
     if (line.trim() === "") continue;
 
-    let parts = line.split(",");
+    let coord = await geocode(line);
 
-    totalLat += parseFloat(parts[0]);
-    totalLng += parseFloat(parts[1]);
-
-    count++;
+    if (coord) coords.push(coord);
   }
 
-  if (count === 0) {
-    document.getElementById("result").innerHTML = "Enter valid coordinates";
+  if (coords.length === 0) {
+
+    document.getElementById("result").innerHTML = "No valid addresses";
+
     return;
   }
 
-  let lat = totalLat / count;
-  let lng = totalLng / count;
+  let totalLat = 0;
+  let totalLng = 0;
+
+  for (let c of coords) {
+
+    totalLat += c.lat;
+    totalLng += c.lng;
+  }
+
+  let center = {
+
+    lat: totalLat / coords.length,
+    lng: totalLng / coords.length
+  };
 
   document.getElementById("result").innerHTML =
-    "Best meeting point: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+    "Best meeting point:<br>" +
+    center.lat.toFixed(5) + ", " +
+    center.lng.toFixed(5);
 
 }
 
