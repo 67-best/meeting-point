@@ -1,170 +1,401 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Best Meeting Point Calculator</title>
-  <meta charset="UTF-8">
 
-  <!-- Leaflet map library -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<meta charset="UTF-8">
 
-  <style>
+<title>Best Meeting Point</title>
 
-    body {
-      font-family: Arial;
-      text-align: center;
-      margin-top: 30px;
-      background-color: #f4f4f4;
-    }
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-    textarea {
-      width: 400px;
-      height: 120px;
-      padding: 10px;
-      font-size: 14px;
-    }
+<style>
 
-    button {
-      padding: 12px 25px;
-      font-size: 16px;
-      margin-top: 10px;
-      cursor: pointer;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
+body {
 
-    #result {
-      margin-top: 20px;
-      font-size: 18px;
-      font-weight: bold;
-    }
+  font-family: Arial;
 
-    #map {
-      height: 400px;
-      width: 80%;
-      margin: 20px auto;
-      border-radius: 10px;
-    }
+  background: linear-gradient(135deg,#667eea,#764ba2);
 
-  </style>
+  color: white;
+
+  text-align: center;
+
+  padding: 20px;
+
+}
+
+.card {
+
+  background: white;
+
+  color: black;
+
+  padding: 20px;
+
+  border-radius: 12px;
+
+  max-width: 800px;
+
+  margin: auto;
+
+}
+
+button {
+
+  padding: 12px;
+
+  border-radius: 8px;
+
+  border: none;
+
+  background: #667eea;
+
+  color: white;
+
+  cursor: pointer;
+
+  font-size: 16px;
+
+}
+
+button:hover {
+
+  background: #5a67d8;
+
+}
+
+#map {
+
+  height: 400px;
+
+  margin-top: 20px;
+
+  border-radius: 12px;
+
+}
+
+#roomLink {
+
+  word-break: break-all;
+
+}
+
+</style>
+
 </head>
 <body>
 
-<h1>Best Meeting Point Calculator</h1>
+<h1>Best Meeting Point</h1>
 
-<p>Enter addresses (one per line)</p>
+<div class="card">
 
-<textarea id="addresses" placeholder="Example:
-Zaragoza, Spain
-Barcelona, Spain
-Madrid, Spain"></textarea>
+<p id="roomLink"></p>
 
-<br>
+<button onclick="addMyLocation()">
 
-<button onclick="findMeetingPoint()">Calculate</button>
+Add My Location
 
-<div id="result"></div>
+</button>
+
+<p id="result">
+
+Waiting for participants...
+
+</p>
 
 <div id="map"></div>
 
+</div>
+
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script>
 
-let map = L.map('map').setView([40.4168, -3.7038], 6);
+<script type="module">
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap'
-}).addTo(map);
+
+import { initializeApp }
+
+from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+
+
+import {
+
+  getFirestore,
+
+  doc,
+
+  setDoc,
+
+  getDoc,
+
+  onSnapshot
+
+}
+
+from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+
+
+const firebaseConfig = {
+
+  apiKey: "AIzaSyCS7M73mjrroopukLHjnsYU_LJsJd5sRhM",
+
+  authDomain: "meeting-point-c6e59.firebaseapp.com",
+
+  projectId: "meeting-point-c6e59",
+
+  storageBucket: "meeting-point-c6e59.firebasestorage.app",
+
+  messagingSenderId: "461316484285",
+
+  appId: "1:461316484285:web:d479f85ae597f32bd59bd4",
+
+  measurementId: "G-29RJRWD4NH"
+
+};
+
+
+const app = initializeApp(firebaseConfig);
+
+const db = getFirestore(app);
+
+
+
+let roomId =
+
+new URLSearchParams(window.location.search)
+
+.get("room");
+
+
+if (!roomId) {
+
+  roomId =
+
+  Math.random().toString(36).substring(2,8);
+
+  window.location.search =
+
+  "?room=" + roomId;
+
+}
+
+
+document.getElementById("roomLink")
+
+.innerHTML =
+
+"Share this link:<br>" +
+
+window.location.href;
+
+
+
+let map =
+
+L.map("map").setView([40.4168,-3.7038],6);
+
+
+L.tileLayer(
+
+"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+
+).addTo(map);
+
+
 
 let markers = [];
 
-async function geocode(address) {
 
-  let url = "https://nominatim.openstreetmap.org/search?format=json&q=" 
-            + encodeURIComponent(address);
+function clearMarkers() {
 
-  let response = await fetch(url);
-  let data = await response.json();
+  markers.forEach(marker =>
 
-  if (data.length === 0) return null;
+    map.removeLayer(marker)
 
-  return {
-    lat: parseFloat(data[0].lat),
-    lng: parseFloat(data[0].lon)
-  };
-}
+  );
 
-async function findMeetingPoint() {
-
-  let lines = document.getElementById("addresses").value.split("\n");
-
-  let coords = [];
-
-  document.getElementById("result").innerHTML = "Calculating...";
-
-  // remove old markers
-  markers.forEach(m => map.removeLayer(m));
   markers = [];
 
-  for (let line of lines) {
+}
 
-    if (line.trim() === "") continue;
 
-    let coord = await geocode(line);
 
-    if (coord) {
+async function addMyLocation() {
 
-      coords.push(coord);
 
-      let marker = L.marker([coord.lat, coord.lng])
-        .addTo(map)
-        .bindPopup("Person location");
+navigator.geolocation.getCurrentPosition(
 
-      markers.push(marker);
-    }
-  }
 
-  if (coords.length === 0) {
+async position => {
 
-    document.getElementById("result").innerHTML = "No valid addresses";
-    return;
-  }
 
-  let totalLat = 0;
-  let totalLng = 0;
+let lat = position.coords.latitude;
 
-  for (let c of coords) {
+let lng = position.coords.longitude;
 
-    totalLat += c.lat;
-    totalLng += c.lng;
-  }
 
-  let center = {
+let roomRef =
 
-    lat: totalLat / coords.length,
-    lng: totalLng / coords.length
-  };
+doc(db,"rooms",roomId);
 
-  // meeting point marker
-  let meetingMarker = L.marker([center.lat, center.lng])
-    .addTo(map)
-    .bindPopup("Best Meeting Point")
-    .openPopup();
 
-  markers.push(meetingMarker);
+let roomSnapshot =
 
-  map.setView([center.lat, center.lng], 7);
+await getDoc(roomRef);
 
-  document.getElementById("result").innerHTML =
-    "Best meeting point:<br>" +
-    center.lat.toFixed(5) + ", " +
-    center.lng.toFixed(5);
+
+let locations = [];
+
+
+if (roomSnapshot.exists()) {
+
+locations =
+
+roomSnapshot.data().locations || [];
 
 }
+
+
+locations.push({
+
+lat: lat,
+
+lng: lng
+
+});
+
+
+await setDoc(roomRef, {
+
+locations: locations
+
+});
+
+
+});
+
+
+}
+
+
+
+onSnapshot(
+
+doc(db,"rooms",roomId),
+
+(snapshot) => {
+
+
+if (!snapshot.exists()) return;
+
+
+let locations =
+
+snapshot.data().locations;
+
+
+calculateMeetingPoint(locations);
+
+
+}
+
+);
+
+
+
+function calculateMeetingPoint(locations) {
+
+
+clearMarkers();
+
+
+let totalLat = 0;
+
+let totalLng = 0;
+
+
+locations.forEach(location => {
+
+
+totalLat += location.lat;
+
+totalLng += location.lng;
+
+
+let marker =
+
+L.marker([
+
+location.lat,
+
+location.lng
+
+]).addTo(map);
+
+
+markers.push(marker);
+
+
+});
+
+
+let centerLat =
+
+totalLat / locations.length;
+
+
+let centerLng =
+
+totalLng / locations.length;
+
+
+let meetingMarker =
+
+L.marker([
+
+centerLat,
+
+centerLng
+
+])
+
+.addTo(map)
+
+.bindPopup("Meeting Point")
+
+.openPopup();
+
+
+markers.push(meetingMarker);
+
+
+map.setView([
+
+centerLat,
+
+centerLng
+
+],7);
+
+
+document.getElementById("result")
+
+.innerHTML =
+
+"Participants: " +
+
+locations.length;
+
+
+}
+
 
 </script>
 
+
 </body>
+
 </html>
