@@ -3,18 +3,22 @@
 <head>
   <title>Best Meeting Point Calculator</title>
   <meta charset="UTF-8">
+
+  <!-- Leaflet map library -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
   <style>
 
     body {
       font-family: Arial;
       text-align: center;
-      margin-top: 50px;
+      margin-top: 30px;
       background-color: #f4f4f4;
     }
 
     textarea {
       width: 400px;
-      height: 150px;
+      height: 120px;
       padding: 10px;
       font-size: 14px;
     }
@@ -36,6 +40,13 @@
       font-weight: bold;
     }
 
+    #map {
+      height: 400px;
+      width: 80%;
+      margin: 20px auto;
+      border-radius: 10px;
+    }
+
   </style>
 </head>
 <body>
@@ -55,7 +66,19 @@ Madrid, Spain"></textarea>
 
 <div id="result"></div>
 
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
+
+let map = L.map('map').setView([40.4168, -3.7038], 6);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+let markers = [];
 
 async function geocode(address) {
 
@@ -81,19 +104,31 @@ async function findMeetingPoint() {
 
   document.getElementById("result").innerHTML = "Calculating...";
 
+  // remove old markers
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
   for (let line of lines) {
 
     if (line.trim() === "") continue;
 
     let coord = await geocode(line);
 
-    if (coord) coords.push(coord);
+    if (coord) {
+
+      coords.push(coord);
+
+      let marker = L.marker([coord.lat, coord.lng])
+        .addTo(map)
+        .bindPopup("Person location");
+
+      markers.push(marker);
+    }
   }
 
   if (coords.length === 0) {
 
     document.getElementById("result").innerHTML = "No valid addresses";
-
     return;
   }
 
@@ -111,6 +146,16 @@ async function findMeetingPoint() {
     lat: totalLat / coords.length,
     lng: totalLng / coords.length
   };
+
+  // meeting point marker
+  let meetingMarker = L.marker([center.lat, center.lng])
+    .addTo(map)
+    .bindPopup("Best Meeting Point")
+    .openPopup();
+
+  markers.push(meetingMarker);
+
+  map.setView([center.lat, center.lng], 7);
 
   document.getElementById("result").innerHTML =
     "Best meeting point:<br>" +
