@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <meta charset="UTF-8">
-
 <title>Best Meeting Point</title>
 
 <link rel="stylesheet"
@@ -12,78 +10,62 @@ href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <style>
 
 body {
-
-  font-family: Arial;
-
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   background: linear-gradient(135deg,#667eea,#764ba2);
-
   color: white;
-
   text-align: center;
+}
 
-  padding: 20px;
-
+h1 {
+  margin-top: 20px;
 }
 
 .card {
-
   background: white;
-
   color: black;
-
   padding: 20px;
-
-  border-radius: 12px;
-
+  border-radius: 16px;
   max-width: 800px;
-
-  margin: auto;
-
+  margin: 20px auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
 
 button {
-
-  padding: 12px;
-
-  border-radius: 8px;
-
+  padding: 14px 20px;
+  border-radius: 10px;
   border: none;
-
   background: #667eea;
-
   color: white;
-
-  cursor: pointer;
-
   font-size: 16px;
-
+  cursor: pointer;
+  margin-top: 10px;
 }
 
 button:hover {
-
   background: #5a67d8;
-
 }
 
 #map {
-
-  height: 400px;
-
+  height: 420px;
   margin-top: 20px;
-
   border-radius: 12px;
-
 }
 
 #roomLink {
-
+  font-size: 14px;
   word-break: break-all;
+  margin-bottom: 15px;
+}
 
+#status {
+  margin-top: 15px;
+  font-weight: bold;
 }
 
 </style>
-
 </head>
+
 <body>
 
 <h1>Best Meeting Point</h1>
@@ -92,348 +74,184 @@ button:hover {
 
 <p id="roomLink"></p>
 
-<button onclick="addMyLocation()">
-
+<button id="locationBtn">
 Add My Location
-
 </button>
 
-<p id="result">
-
+<div id="status">
 Waiting for participants...
-
-</p>
+</div>
 
 <div id="map"></div>
 
 </div>
 
-
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 
 <script type="module">
 
+/* -----------------------------
+   FIREBASE CONFIGURATION
+------------------------------ */
 
 import { initializeApp }
-
 from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 
-
 import {
-
   getFirestore,
-
   doc,
-
-  setDoc,
-
   getDoc,
-
+  setDoc,
   onSnapshot
-
 }
-
 from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-
-
 const firebaseConfig = {
-
   apiKey: "AIzaSyCS7M73mjrroopukLHjnsYU_LJsJd5sRhM",
-
   authDomain: "meeting-point-c6e59.firebaseapp.com",
-
   projectId: "meeting-point-c6e59",
-
   storageBucket: "meeting-point-c6e59.firebasestorage.app",
-
   messagingSenderId: "461316484285",
-
-  appId: "1:461316484285:web:d479f85ae597f32bd59bd4",
-
-  measurementId: "G-29RJRWD4NH"
-
+  appId: "1:461316484285:web:d479f85ae597f32bd59bd4"
 };
 
-
 const app = initializeApp(firebaseConfig);
-
 const db = getFirestore(app);
 
 
+/* -----------------------------
+   ROOM SYSTEM
+------------------------------ */
 
-let roomId =
-
-new URLSearchParams(window.location.search)
-
-.get("room");
-
+let roomId = new URLSearchParams(window.location.search).get("room");
 
 if (!roomId) {
-
-  roomId =
-
-  Math.random().toString(36).substring(2,8);
-
-  window.location.search =
-
-  "?room=" + roomId;
-
+  roomId = Math.random().toString(36).substring(2,8);
+  window.location.search = "?room=" + roomId;
 }
 
-
-document.getElementById("roomLink")
-
-.innerHTML =
-
-"Share this link:<br>" +
-
-window.location.href;
+document.getElementById("roomLink").innerHTML =
+  "Share this link:<br>" + window.location.href;
 
 
+/* -----------------------------
+   MAP INITIALIZATION
+------------------------------ */
 
-let map =
-
-L.map("map").setView([40.4168,-3.7038],6);
-
+const map = L.map("map").setView([40.4168, -3.7038], 6);
 
 L.tileLayer(
-
-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  { attribution: "© OpenStreetMap" }
 ).addTo(map);
-
-
 
 let markers = [];
 
-
 function clearMarkers() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+}
 
-  markers.forEach(marker =>
 
-    map.removeLayer(marker)
+/* -----------------------------
+   ADD USER LOCATION
+------------------------------ */
 
+const button = document.getElementById("locationBtn");
+
+button.addEventListener("click", () => {
+
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      const roomRef = doc(db, "rooms", roomId);
+      const snapshot = await getDoc(roomRef);
+
+      let locations = [];
+
+      if (snapshot.exists()) {
+        locations = snapshot.data().locations || [];
+      }
+
+      locations.push({ lat, lng });
+
+      await setDoc(roomRef, { locations });
+
+    },
+    (error) => {
+      alert("Location permission denied");
+      console.error(error);
+    }
   );
 
-  markers = [];
-
-}
+});
 
 
+/* -----------------------------
+   REALTIME LISTENER
+------------------------------ */
 
-async function addMyLocation(){
+onSnapshot(doc(db, "rooms", roomId), (snapshot) => {
 
-navigator.geolocation.getCurrentPosition(
+  if (!snapshot.exists()) return;
 
-async position => {
+  const data = snapshot.data();
+  const locations = data.locations || [];
 
-let lat = position.coords.latitude;
-let lng = position.coords.longitude;
-
-console.log("Location:", lat, lng);
-
-let roomRef = doc(db,"rooms",roomId);
-
-let roomSnapshot = await getDoc(roomRef);
-
-let locations = [];
-
-if (roomSnapshot.exists()) {
-locations = roomSnapshot.data().locations || [];
-}
-
-locations.push({lat,lng});
-
-await setDoc(roomRef,{locations});
-
-},
-
-error => {
-
-alert("Location access denied or unavailable");
-
-console.error(error);
-
-}
-
-);
-
-}
-
-
-
-navigator.geolocation.getCurrentPosition(
-
-
-async position => {
-
-
-let lat = position.coords.latitude;
-
-let lng = position.coords.longitude;
-
-
-let roomRef =
-
-doc(db,"rooms",roomId);
-
-
-let roomSnapshot =
-
-await getDoc(roomRef);
-
-
-let locations = [];
-
-
-if (roomSnapshot.exists()) {
-
-locations =
-
-roomSnapshot.data().locations || [];
-
-}
-
-
-locations.push({
-
-lat: lat,
-
-lng: lng
+  updateMap(locations);
 
 });
 
 
-await setDoc(roomRef, {
+/* -----------------------------
+   CALCULATE MEETING POINT
+------------------------------ */
 
-locations: locations
+function updateMap(locations) {
 
-});
+  clearMarkers();
 
+  if (locations.length === 0) return;
 
-});
+  let totalLat = 0;
+  let totalLng = 0;
 
+  locations.forEach(loc => {
+
+    totalLat += loc.lat;
+    totalLng += loc.lng;
+
+    const marker = L.marker([loc.lat, loc.lng]).addTo(map);
+    markers.push(marker);
+
+  });
+
+  const centerLat = totalLat / locations.length;
+  const centerLng = totalLng / locations.length;
+
+  const centerMarker = L.marker([centerLat, centerLng])
+    .addTo(map)
+    .bindPopup("Meeting Point")
+    .openPopup();
+
+  markers.push(centerMarker);
+
+  map.setView([centerLat, centerLng], 7);
+
+  document.getElementById("status").innerHTML =
+    "Participants: " + locations.length;
 
 }
-
-
-
-onSnapshot(
-
-doc(db,"rooms",roomId),
-
-(snapshot) => {
-
-
-if (!snapshot.exists()) return;
-
-
-let locations =
-
-snapshot.data().locations;
-
-
-calculateMeetingPoint(locations);
-
-
-}
-
-);
-
-
-
-function calculateMeetingPoint(locations) {
-
-
-clearMarkers();
-
-
-let totalLat = 0;
-
-let totalLng = 0;
-
-
-locations.forEach(location => {
-
-
-totalLat += location.lat;
-
-totalLng += location.lng;
-
-
-let marker =
-
-L.marker([
-
-location.lat,
-
-location.lng
-
-]).addTo(map);
-
-
-markers.push(marker);
-
-
-});
-
-
-let centerLat =
-
-totalLat / locations.length;
-
-
-let centerLng =
-
-totalLng / locations.length;
-
-
-let meetingMarker =
-
-L.marker([
-
-centerLat,
-
-centerLng
-
-])
-
-.addTo(map)
-
-.bindPopup("Meeting Point")
-
-.openPopup();
-
-
-markers.push(meetingMarker);
-
-
-map.setView([
-
-centerLat,
-
-centerLng
-
-],7);
-
-
-document.getElementById("result")
-
-.innerHTML =
-
-"Participants: " +
-
-locations.length;
-
-
-}
-
 
 </script>
 
-
 </body>
-
 </html>
