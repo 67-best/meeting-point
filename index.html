@@ -3,81 +3,185 @@
 <head>
 
 <meta charset="UTF-8">
+
 <title>Best Meeting Point</title>
 
 <link rel="stylesheet"
 href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 rel="stylesheet">
 
 <style>
 
+/* BACKGROUND */
+
 body{
+
 margin:0;
+
 font-family:Inter;
-background:#0f172a;
+
+background:
+linear-gradient(180deg,#0f172a,#1e293b);
+
 color:white;
+
 display:flex;
+
 justify-content:center;
+
 align-items:center;
+
 height:100vh;
+
 }
+
+
+/* APP CARD */
 
 .app{
+
 width:900px;
-background:rgba(255,255,255,0.05);
-padding:20px;
+
+background:rgba(255,255,255,0.08);
+
+backdrop-filter:blur(20px);
+
+padding:25px;
+
 border-radius:20px;
+
+box-shadow:
+0 30px 80px rgba(0,0,0,0.6);
+
 }
+
+
+/* TITLE */
+
+.title{
+
+font-size:28px;
+
+font-weight:700;
+
+margin-bottom:15px;
+
+}
+
+
+/* BUTTON */
 
 button{
-padding:12px;
-border-radius:10px;
-border:none;
+
 background:#6366f1;
+
+border:none;
+
+padding:12px 18px;
+
+border-radius:10px;
+
 color:white;
+
+font-weight:600;
+
 cursor:pointer;
+
 margin-top:10px;
+
 }
+
+button:hover{
+
+background:#7c3aed;
+
+}
+
+
+/* INPUT */
 
 input{
+
 padding:12px;
+
 border-radius:10px;
+
 border:none;
-width:300px;
+
+width:100%;
+
 margin-top:10px;
+
 }
 
+
+/* AUTOCOMPLETE BOX */
+
+.results{
+
+background:#1e293b;
+
+border-radius:10px;
+
+margin-top:5px;
+
+max-height:200px;
+
+overflow:auto;
+
+}
+
+.result{
+
+padding:10px;
+
+cursor:pointer;
+
+}
+
+.result:hover{
+
+background:#334155;
+
+}
+
+
+/* MAP */
+
 #map{
+
 height:400px;
+
 margin-top:20px;
+
 border-radius:15px;
+
 }
 
 </style>
 
 </head>
+
 <body>
 
 <div class="app">
 
-<h2>Best Meeting Point</h2>
+<div class="title">
+Best Meeting Point
+</div>
 
 <div id="roomLink"></div>
 
-<button onclick="addLocationGPS()">
-Use my GPS location
+<button onclick="useGPS()">
+Use my location
 </button>
 
-<br>
+<input id="search"
+placeholder="Search address"/>
 
-<input id="addressInput"
-placeholder="Enter address manually"/>
-
-<button onclick="addManualAddress()">
-Use address
-</button>
+<div id="results" class="results"></div>
 
 <div id="status"></div>
 
@@ -102,23 +206,30 @@ onSnapshot
 }
 from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
+
 const firebaseConfig={
+
 apiKey:"AIzaSy...",
 authDomain:"meeting-point-c6e59.firebaseapp.com",
 projectId:"meeting-point-c6e59"
+
 };
 
 const app=initializeApp(firebaseConfig);
+
 const db=getFirestore(app);
 
 
-/* USER ID */
+/* USER */
 
-let userId=localStorage.getItem("userId");
+let userId=
+localStorage.getItem("userId");
 
 if(!userId){
 
-userId=Math.random().toString(36).substring(2,10);
+userId=
+Math.random().toString(36).substring(2,10);
+
 localStorage.setItem("userId",userId);
 
 }
@@ -127,22 +238,26 @@ localStorage.setItem("userId",userId);
 /* ROOM */
 
 let roomId=
-new URLSearchParams(window.location.search).get("room");
+new URLSearchParams(location.search)
+.get("room");
 
 if(!roomId){
 
-roomId=Math.random().toString(36).substring(2,8);
-window.location.search="?room="+roomId;
+roomId=
+Math.random().toString(36).substring(2,8);
+
+location.search="?room="+roomId;
 
 }
 
 document.getElementById("roomLink").innerHTML=
-window.location.href;
+location.href;
 
 
 /* MAP */
 
-const map=L.map("map").setView([40,-3],6);
+const map=L.map("map")
+.setView([40,-3],6);
 
 L.tileLayer(
 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -153,14 +268,43 @@ let markers=[];
 function clearMarkers(){
 
 markers.forEach(m=>map.removeLayer(m));
+
 markers=[];
 
 }
 
 
-/* GPS LOCATION */
+/* SAVE LOCATION */
 
-window.addLocationGPS=function(){
+async function saveLocation(lat,lng){
+
+const ref=
+doc(db,"rooms",roomId);
+
+const snap=
+await getDoc(ref);
+
+let locations={};
+
+if(snap.exists())
+locations=snap.data().locations||{};
+
+locations[userId]={
+
+lat,
+lng,
+time:Date.now()
+
+};
+
+await setDoc(ref,{locations});
+
+}
+
+
+/* GPS */
+
+window.useGPS=function(){
 
 navigator.geolocation.getCurrentPosition(
 
@@ -173,87 +317,64 @@ pos.coords.longitude
 
 },
 
-()=>{
-
-alert("GPS denied. Enter address manually.");
-
-}
+()=>alert("GPS denied")
 
 );
 
 }
 
 
-/* MANUAL ADDRESS */
+/* AUTOCOMPLETE */
 
-window.addManualAddress=async function(){
+const search=
+document.getElementById("search");
 
-const address=
-document.getElementById("addressInput").value;
+search.oninput=async ()=>{
+
+const q=search.value;
+
+if(q.length<3)return;
 
 const url=
-"https://nominatim.openstreetmap.org/search?format=json&q="
-+encodeURIComponent(address);
+"https://photon.komoot.io/api/?q="
++encodeURIComponent(q);
 
 const res=await fetch(url);
 
 const data=await res.json();
 
-if(data.length==0){
+const results=
+document.getElementById("results");
 
-alert("Address not found");
-return;
+results.innerHTML="";
 
-}
+data.features.forEach(place=>{
+
+const div=
+document.createElement("div");
+
+div.className="result";
+
+div.innerHTML=
+place.properties.name+", "+
+(place.properties.city||"");
+
+div.onclick=()=>{
 
 saveLocation(
-parseFloat(data[0].lat),
-parseFloat(data[0].lon)
+place.geometry.coordinates[1],
+place.geometry.coordinates[0]
 );
 
-}
-
-
-/* SAVE LOCATION */
-
-async function saveLocation(lat,lng){
-
-const ref=doc(db,"rooms",roomId);
-
-const snap=await getDoc(ref);
-
-let locations={};
-
-if(snap.exists())
-locations=snap.data().locations||{};
-
-
-/* CLEAN OLD USERS */
-
-const now=Date.now();
-
-Object.keys(locations).forEach(id=>{
-
-if(now-locations[id].lastSeen>1000*60*5){
-
-delete locations[id];
-
-}
-
-});
-
-
-locations[userId]={
-
-lat,
-lng,
-lastSeen:Date.now()
+results.innerHTML="";
 
 };
 
-await setDoc(ref,{locations});
+results.appendChild(div);
 
-}
+});
+
+};
 
 
 /* REALTIME */
@@ -300,6 +421,8 @@ lng/=users.length;
 markers.push(
 L.marker([lat,lng])
 .addTo(map)
+.bindPopup("Meeting Point")
+.openPopup()
 );
 
 map.setView([lat,lng],10);
