@@ -1,74 +1,181 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <meta charset="UTF-8">
+
 <title>Best Meeting Point</title>
 
 <link rel="stylesheet"
 href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+rel="stylesheet">
+
 <style>
 
+/* -----------------------------
+   GLOBAL
+------------------------------ */
+
 body {
+
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: linear-gradient(135deg,#667eea,#764ba2);
-  color: white;
-  text-align: center;
+
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  background:
+  linear-gradient(180deg,#f5f7fb 0%,#e9eef5 100%);
+
+  height: 100vh;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
 }
 
-h1 {
-  margin-top: 20px;
+
+/* -----------------------------
+   CONTAINER
+------------------------------ */
+
+.container {
+
+  width: 900px;
+
 }
+
+
+/* -----------------------------
+   TITLE
+------------------------------ */
+
+.title {
+
+  font-size: 28px;
+
+  font-weight: 600;
+
+  color: #111;
+
+  margin-bottom: 20px;
+
+}
+
+
+/* -----------------------------
+   CARD (Glass effect)
+------------------------------ */
 
 .card {
-  background: white;
-  color: black;
-  padding: 20px;
-  border-radius: 16px;
-  max-width: 800px;
-  margin: 20px auto;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+
+  background: rgba(255,255,255,0.7);
+
+  backdrop-filter: blur(20px);
+
+  border-radius: 20px;
+
+  padding: 24px;
+
+  box-shadow:
+  0 10px 30px rgba(0,0,0,0.08);
+
 }
 
-button {
-  padding: 14px 20px;
-  border-radius: 10px;
-  border: none;
-  background: #667eea;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-  margin-top: 10px;
-}
 
-button:hover {
-  background: #5a67d8;
-}
-
-#map {
-  height: 420px;
-  margin-top: 20px;
-  border-radius: 12px;
-}
+/* -----------------------------
+   TEXT
+------------------------------ */
 
 #roomLink {
+
   font-size: 14px;
+
+  color: #555;
+
+  margin-bottom: 16px;
+
   word-break: break-all;
-  margin-bottom: 15px;
+
 }
 
 #status {
-  margin-top: 15px;
-  font-weight: bold;
+
+  margin-top: 16px;
+
+  font-size: 15px;
+
+  color: #333;
+
+}
+
+
+/* -----------------------------
+   BUTTON
+------------------------------ */
+
+button {
+
+  background: #111;
+
+  color: white;
+
+  border: none;
+
+  padding: 12px 20px;
+
+  border-radius: 12px;
+
+  font-size: 15px;
+
+  font-weight: 500;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+
+}
+
+button:hover {
+
+  transform: translateY(-1px);
+
+  box-shadow:
+  0 5px 15px rgba(0,0,0,0.15);
+
+}
+
+
+/* -----------------------------
+   MAP
+------------------------------ */
+
+#map {
+
+  height: 420px;
+
+  margin-top: 20px;
+
+  border-radius: 16px;
+
+  overflow: hidden;
+
 }
 
 </style>
+
 </head>
 
 <body>
 
-<h1>Best Meeting Point</h1>
+<div class="container">
+
+<div class="title">
+Best Meeting Point
+</div>
 
 <div class="card">
 
@@ -86,12 +193,15 @@ Waiting for participants...
 
 </div>
 
+</div>
+
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script type="module">
 
 /* -----------------------------
-   FIREBASE CONFIGURATION
+   FIREBASE
 ------------------------------ */
 
 import { initializeApp }
@@ -107,147 +217,223 @@ import {
 from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
 const firebaseConfig = {
+
   apiKey: "AIzaSyCS7M73mjrroopukLHjnsYU_LJsJd5sRhM",
+
   authDomain: "meeting-point-c6e59.firebaseapp.com",
+
   projectId: "meeting-point-c6e59",
+
   storageBucket: "meeting-point-c6e59.firebasestorage.app",
+
   messagingSenderId: "461316484285",
+
   appId: "1:461316484285:web:d479f85ae597f32bd59bd4"
+
 };
 
 const app = initializeApp(firebaseConfig);
+
 const db = getFirestore(app);
+
+
+/* -----------------------------
+   USER ID (prevents duplicates)
+------------------------------ */
+
+let userId =
+localStorage.getItem("userId");
+
+if (!userId) {
+
+  userId =
+  Math.random().toString(36).substring(2,10);
+
+  localStorage.setItem("userId",userId);
+
+}
 
 
 /* -----------------------------
    ROOM SYSTEM
 ------------------------------ */
 
-let roomId = new URLSearchParams(window.location.search).get("room");
+let roomId =
+new URLSearchParams(window.location.search)
+.get("room");
 
 if (!roomId) {
-  roomId = Math.random().toString(36).substring(2,8);
-  window.location.search = "?room=" + roomId;
+
+  roomId =
+  Math.random().toString(36).substring(2,8);
+
+  window.location.search =
+  "?room=" + roomId;
+
 }
 
 document.getElementById("roomLink").innerHTML =
-  "Share this link:<br>" + window.location.href;
+"Share this link:<br>" +
+window.location.href;
 
 
 /* -----------------------------
-   MAP INITIALIZATION
+   MAP INIT
 ------------------------------ */
 
-const map = L.map("map").setView([40.4168, -3.7038], 6);
+const map =
+L.map("map").setView([40.4168,-3.7038],6);
 
 L.tileLayer(
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  { attribution: "© OpenStreetMap" }
+"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+{ attribution: "© OpenStreetMap" }
 ).addTo(map);
 
 let markers = [];
 
-function clearMarkers() {
-  markers.forEach(m => map.removeLayer(m));
-  markers = [];
+function clearMarkers(){
+
+markers.forEach(marker =>
+map.removeLayer(marker)
+);
+
+markers = [];
+
 }
 
 
 /* -----------------------------
-   ADD USER LOCATION
+   ADD LOCATION
 ------------------------------ */
 
-const button = document.getElementById("locationBtn");
+document.getElementById("locationBtn")
+.addEventListener("click",()=>{
 
-button.addEventListener("click", () => {
+if (!navigator.geolocation){
 
-  if (!navigator.geolocation) {
-    alert("Geolocation not supported");
-    return;
-  }
+alert("Geolocation not supported");
 
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
+return;
 
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+}
 
-      const roomRef = doc(db, "rooms", roomId);
-      const snapshot = await getDoc(roomRef);
+navigator.geolocation.getCurrentPosition(
 
-      let locations = [];
+async position=>{
 
-      if (snapshot.exists()) {
-        locations = snapshot.data().locations || [];
-      }
+const lat =
+position.coords.latitude;
 
-      locations.push({ lat, lng });
+const lng =
+position.coords.longitude;
 
-      await setDoc(roomRef, { locations });
+const roomRef =
+doc(db,"rooms",roomId);
 
-    },
-    (error) => {
-      alert("Location permission denied");
-      console.error(error);
-    }
-  );
+const snapshot =
+await getDoc(roomRef);
+
+let locations = {};
+
+if(snapshot.exists()){
+
+locations =
+snapshot.data().locations || {};
+
+}
+
+locations[userId] =
+{lat,lng};
+
+await setDoc(roomRef,
+{locations});
+
+},
+
+error=>{
+
+alert("Location permission denied");
+
+}
+
+);
 
 });
 
 
 /* -----------------------------
-   REALTIME LISTENER
+   REALTIME SYNC
 ------------------------------ */
 
-onSnapshot(doc(db, "rooms", roomId), (snapshot) => {
+onSnapshot(
 
-  if (!snapshot.exists()) return;
+doc(db,"rooms",roomId),
 
-  const data = snapshot.data();
-  const locations = data.locations || [];
+snapshot=>{
 
-  updateMap(locations);
+if(!snapshot.exists()) return;
 
-});
+const locations =
+snapshot.data().locations || {};
+
+updateMap(locations);
+
+}
+
+);
 
 
 /* -----------------------------
-   CALCULATE MEETING POINT
+   UPDATE MAP + MIDPOINT
 ------------------------------ */
 
-function updateMap(locations) {
+function updateMap(locationsObj){
 
-  clearMarkers();
+clearMarkers();
 
-  if (locations.length === 0) return;
+const locations =
+Object.values(locationsObj);
 
-  let totalLat = 0;
-  let totalLng = 0;
+if(locations.length===0) return;
 
-  locations.forEach(loc => {
+let totalLat=0;
+let totalLng=0;
 
-    totalLat += loc.lat;
-    totalLng += loc.lng;
+locations.forEach(loc=>{
 
-    const marker = L.marker([loc.lat, loc.lng]).addTo(map);
-    markers.push(marker);
+totalLat+=loc.lat;
+totalLng+=loc.lng;
 
-  });
+const marker=
+L.marker([loc.lat,loc.lng])
+.addTo(map);
 
-  const centerLat = totalLat / locations.length;
-  const centerLng = totalLng / locations.length;
+markers.push(marker);
 
-  const centerMarker = L.marker([centerLat, centerLng])
-    .addTo(map)
-    .bindPopup("Meeting Point")
-    .openPopup();
+});
 
-  markers.push(centerMarker);
+const centerLat=
+totalLat/locations.length;
 
-  map.setView([centerLat, centerLng], 7);
+const centerLng=
+totalLng/locations.length;
 
-  document.getElementById("status").innerHTML =
-    "Participants: " + locations.length;
+const centerMarker=
+L.marker([centerLat,centerLng])
+.addTo(map)
+.bindPopup("Meeting Point")
+.openPopup();
+
+markers.push(centerMarker);
+
+map.setView(
+[centerLat,centerLng],
+10
+);
+
+document.getElementById("status")
+.innerHTML=
+"Participants: "+locations.length;
 
 }
 
