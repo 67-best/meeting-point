@@ -329,7 +329,7 @@ pos.coords.longitude
 const search=
 document.getElementById("search");
 
-search.oninput=async ()=>{
+search.oninput = async () => {    const q = search.value.trim();    const results =   document.getElementById("results");    // Si el texto está vacío o muy corto → limpiar resultados   if (q.length < 3) {      results.innerHTML = "";      results.style.display = "none";      return;    }    // Mostrar resultados   results.style.display = "block";    const url =   "https://photon.komoot.io/api/?q=" +   encodeURIComponent(q);    const res = await fetch(url);    const data = await res.json();    results.innerHTML = "";    data.features.forEach(place => {      const div =     document.createElement("div");      div.className = "result";      div.innerHTML =       place.properties.name +       ", " +       (place.properties.city || place.properties.country || "");      div.onclick = () => {        saveLocation(         place.geometry.coordinates[1],         place.geometry.coordinates[0]       );        // limpiar resultados después de seleccionar       results.innerHTML = "";        results.style.display = "none";        search.value = div.innerHTML;      };      results.appendChild(div);    });  };
 
 const q=search.value;
 
